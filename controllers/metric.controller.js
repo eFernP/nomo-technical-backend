@@ -7,7 +7,7 @@ const Metric = db.metric;
 exports.createMetric = async (req, res) => {
   let status = 500;
   try {
-    const { error } = creationSchema.validate(req.body);
+    const { error } = schema.validate(req.body);
     if (error) {
       status = 400;
       throw new Error(error.details[0].message);
@@ -54,8 +54,8 @@ exports.getMetrics = async (req, res) => {
     });
 
     if (metrics.length === 0) {
-      status = 400;
-      throw new Error("No metrics have been found");
+      status = 200;
+      return sendResponse(res, 200, "No metrics in the database", []);
     }
 
     let finalMetrics;
@@ -68,7 +68,7 @@ exports.getMetrics = async (req, res) => {
     } else {
       finalMetrics = metrics.map((m) => {
         const timestamp = changeDateFormat(new Date(m.dataValues.timestamp));
-        const { name, value } = m.dataValues;
+        const { id, name, value } = m.dataValues;
         return { id, name, value, timestamp };
       });
     }
@@ -82,10 +82,17 @@ exports.updateMetric = async (req, res) => {
   let status = 500;
   try {
     const { id, name, value, timestamp } = req.body;
+
     const metricInstance = await Metric.findOne({
       where: { id },
     });
     if (metricInstance) {
+      const { error } = schema.validate({ name, value, timestamp });
+      if (error) {
+        status = 400;
+        throw new Error(error.details[0].message);
+      }
+
       const metric = await metricInstance.update({ name, value, timestamp });
       return sendResponse(res, 200, "Metric updated correctly", metric);
     } else {
@@ -143,7 +150,6 @@ const getAverage = (arr, tsLength, zeros) => {
       const total = groups[n][t].reduce((accumulator, v) => accumulator + v, 0);
       const value = total / groups[n][t].length;
       let metric = {};
-      metric.id = id;
       metric.name = n;
       metric.timestamp = t;
       metric.value = value;
@@ -169,7 +175,7 @@ const checkNumberFormat = (number) => {
   return number < 10 ? `0${number}` : number;
 };
 
-const creationSchema = Joi.object({
+const schema = Joi.object({
   name: Joi.string().max(50).required(),
   value: Joi.number().required(),
   timestamp: Joi.date().required(),
