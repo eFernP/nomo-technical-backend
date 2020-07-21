@@ -59,18 +59,17 @@ exports.getMetrics = async (req, res) => {
     }
 
     let finalMetrics;
-
     if (average === "minute") {
-      finalMetrics = getAverage(metrics, 16);
+      finalMetrics = getAverage(metrics, 16, ":00");
     } else if (average === "hour") {
-      finalMetrics = getAverage(metrics, 13);
+      finalMetrics = getAverage(metrics, 13, ":00:00");
     } else if (average === "day") {
-      finalMetrics = getAverage(metrics, 10);
+      finalMetrics = getAverage(metrics, 10, "");
     } else {
       finalMetrics = metrics.map((m) => {
         const timestamp = changeDateFormat(new Date(m.dataValues.timestamp));
         const { name, value } = m.dataValues;
-        return { name, value, timestamp };
+        return { id, name, value, timestamp };
       });
     }
     return sendResponse(res, 200, "Got metrics", finalMetrics);
@@ -79,11 +78,50 @@ exports.getMetrics = async (req, res) => {
   }
 };
 
-const getAverage = (arr, tsLength) => {
+exports.updateMetric = async (req, res) => {
+  let status = 500;
+  try {
+    const { id, name, value, timestamp } = req.body;
+    const metricInstance = await Metric.findOne({
+      where: { id },
+    });
+    if (metricInstance) {
+      const metric = await metricInstance.update({ name, value, timestamp });
+      return sendResponse(res, 200, "Metric updated correctly", metric);
+    } else {
+      status = 400;
+      throw new Error("Metric has not been found");
+    }
+  } catch (error) {
+    return sendResponse(res, status, error.message);
+  }
+};
+
+exports.deleteMetric = async (req, res) => {
+  let status = 500;
+  try {
+    const { id } = req.body;
+    const result = await Metric.destroy({
+      where: {
+        id,
+      },
+    });
+    if (result === 0) {
+      status = 400;
+      throw new Error("There is no metric to remove");
+    } else {
+      return sendResponse(res, 200, "Metric removed correctly");
+    }
+  } catch (error) {
+    return sendResponse(res, status, error.message);
+  }
+};
+
+const getAverage = (arr, tsLength, zeros) => {
   const groups = {};
   arr.forEach((m) => {
     const date = changeDateFormat(new Date(m.dataValues.timestamp));
-    const timeGroup = date.slice(0, tsLength);
+    const timeGroup = `${date.slice(0, tsLength)}${zeros}`;
     const nameGroup = m.dataValues.name;
 
     if (!groups[nameGroup]) {
@@ -105,6 +143,7 @@ const getAverage = (arr, tsLength) => {
       const total = groups[n][t].reduce((accumulator, v) => accumulator + v, 0);
       const value = total / groups[n][t].length;
       let metric = {};
+      metric.id = id;
       metric.name = n;
       metric.timestamp = t;
       metric.value = value;
