@@ -128,9 +128,7 @@ const getAverage = (arr, tsLength, zeros) => {
   const groups = {};
   arr.forEach((m) => {
     const date = changeDateFormat(new Date(m.dataValues.timestamp));
-    console.log("DATE AFTER CHANGE FORMAT", date);
     const timeGroup = `${date.slice(0, tsLength)}${zeros}`;
-    console.log("TIME GROUP", timeGroup, m.dataValues.timestamp);
     const nameGroup = m.dataValues.name;
 
     if (!groups[nameGroup]) {
