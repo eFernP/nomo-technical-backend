@@ -23,4 +23,4 @@ Per executar el projecte:
 
     - Executar "npm start" també a la terminal.
 
-    - S'executarà al port 3000. Per canviar el port, canviar la constant API_BASE_URL de Constants.js
+    - La url del backend és per defecte http://localhost:8000/api/. Si es fa servir una altra, canviar la constant API_BASE_URL de Constants.js
